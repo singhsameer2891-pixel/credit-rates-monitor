@@ -1,0 +1,3 @@
+# generated at run time by scripts/fetch_cds_ice.py; never committed
+cds_today.csv
+__pycache__/

@@ -41,11 +41,17 @@ jobs:
         with:
           python-version: "3.12"
 
+      # Free ICE Clear Credit EOD settlement prices -> cds_today.csv.
+      # Best effort: if ICE is unreachable the treasury refresh still runs.
+      - name: Fetch CDS marks from ICE
+        id: cds
+        continue-on-error: true
+        run: python3 scripts/fetch_cds_ice.py --out cds_today.csv
+
       - name: Fetch end-of-day data
         env:
-          # Pick one: none | csv | ice | vendor
-          CDS_SOURCE: none
-          CDS_ICE_URL: ${{ vars.CDS_ICE_URL }}
+          # csv when the ICE step produced marks, none otherwise
+          CDS_SOURCE: ${{ steps.cds.outcome == 'success' && 'csv' || 'none' }}
           CDS_API_URL: ${{ vars.CDS_API_URL }}
           CDS_API_KEY: ${{ secrets.CDS_API_KEY }}
         run: |

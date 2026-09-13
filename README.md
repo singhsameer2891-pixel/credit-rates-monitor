@@ -83,11 +83,21 @@ the conversions for other cities are in the comments at the top.
 
 ## About the CDS numbers
 
-Treasury yields work immediately. CDS is the awkward half: there is no free
-public API for single-name credit default swaps, so out of the box the
-dashboard shows Treasury data with the demo spreads still in place.
+CDS marks are fetched automatically. Each run, `scripts/fetch_cds_ice.py`
+downloads ICE Clear Credit's free end-of-day single-name settlement prices
+(`https://www.ice.com/api/cds-settlement-prices/icc-single-names`), picks the
+USD 5-year senior 100bp-coupon contract for each issuer, converts the
+settlement *price* to a par *spread* (flat-hazard model, 40% recovery,
+bisection — deterministic stdlib code, nothing else in the loop) and writes
+`cds_today.csv`. The workflow then runs the fetcher with `CDS_SOURCE=csv`.
+If ICE is unreachable that day, the step is skipped and the Treasury refresh
+proceeds with `CDS_SOURCE=none`.
 
-Pick one of three routes and set `CDS_SOURCE` in `daily-refresh.yml`:
+Because the spreads are model-derived from settlement prices, expect them to
+track quoted vendor spreads closely but not to the decimal.
+
+The manual routes below still work if you ever want to override this;
+set `CDS_SOURCE` in `daily-refresh.yml` back to a fixed value:
 
 **`csv`** — free, manual. Each morning you commit a `cds_today.csv` with two
 columns: ticker and spread in basis points. Six lines. Works with no licence.
