@@ -26,3 +26,16 @@
 | 2.1 | Find historical access to ICE settlement prices | ❌ | Endpoint serves ONLY the latest clearing date; all date params (`date`, `clearingDate`, `asOfDate`, `businessDate`, `tradeDate`, path style) ignored or 404. No history API exists publicly. |
 | 2.2 | Alternate sources: Wayback Machine, public scrape repos | ❌ | Wayback: 2 API captures, both 2024 (outside data window); in-window page snapshots are empty JS shells. GitHub: 2 repos use the endpoint, neither publishes accumulated data. |
 | 2.3 | Backfill data.json | ❌ | Not possible without a licensed vendor (S&P Global / ICE Data Derivatives). History accrues organically: the daily 06:00 IST job adds one session per weekday from 2026-09-11 onward. |
+
+---
+
+## GROUP 3: Proxy CDS backfill + dashboard toggle ✅ DONE
+**Depends on:** GROUP 1 (GROUP 2 blocked → proxy route approved by user)
+**Summary:** Backfill pre-live credit history from FRED rating-bucket OAS (level-anchored bond-spread proxy) with a dashboard toggle: ON plots proxy+real, OFF plots only real daily marks.
+
+| ID | Task | Status | Notes |
+|----|------|--------|-------|
+| 3.1 | `scripts/backfill_cds_proxy.py`: FRED ICE BofA OAS (AAA/AA/A/BBB) → per-issuer proxy via level-anchor to first real mark; writes `cds_proxy` per row | ✅ | deterministic stdlib; TLS1.2 + `--csv-dir` fallback (FRED tarpits non-browser clients) |
+| 3.2 | Backfill data.json: 399 rows 2025-02-06..2026-09-10; real `cds` untouched | ✅ | anchors: ORCL 1.91×BBB, MSFT 1.05×AAA, GOOGL 1.04×AA, AMZN 1.07×AA, META 1.42×AA, NVDA 1.14×A |
+| 3.3 | index.html: `Proxy history` toggle (default ON, persisted), `cdsAt()` resolution real>proxy, disclosure note in CDS panel | ✅ | verified ON/OFF locally in browser |
+| 3.4 | Docs + push + live verification | ✅ | |

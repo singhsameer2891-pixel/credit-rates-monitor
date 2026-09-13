@@ -95,6 +95,7 @@
   <section class="panel">
     <div class="phd">
       <div><h2>CDS spreads</h2><p id="cdsNote">Basis points per year of protection</p></div>
+      <button class="chip" id="proxyToggle" type="button" title="Pre-live history estimated from rating-bucket bond spreads (FRED ICE BofA OAS), level-anchored to the first real CDS mark"></button>
     </div>
     <div class="pbd">
       <div class="chartwrap"><div id="cdsChart"></div><div class="tipbox" id="cdsTip"></div></div>
@@ -148,8 +149,24 @@ var MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov",
 
 var state = {
   series: [], demo:false, refreshed:null,
-  win:"DoD", view:"level", hidden:{}
+  win:"DoD", view:"level", hidden:{}, proxy:true
 };
+
+/* Real mark wins; proxy fills history only while the toggle is on. */
+function cdsAt(r, id){
+  if(!r) return null;
+  var v = r.cds ? r.cds[id] : null;
+  if(v!=null) return v;
+  if(state.proxy && r.cds_proxy && r.cds_proxy[id]!=null) return r.cds_proxy[id];
+  return null;
+}
+function firstRealDate(){
+  for(var i=0;i<state.series.length;i++){
+    var c=state.series[i].cds;
+    if(c) for(var k in c){ if(c[k]!=null) return state.series[i].date; }
+  }
+  return null;
+}
 
 /* ---------------- storage ---------------- */
 
@@ -157,7 +174,7 @@ function save(){
   try{
     localStorage.setItem(STORE, JSON.stringify({
       series:state.series, demo:state.demo, refreshed:state.refreshed,
-      win:state.win, view:state.view, hidden:state.hidden
+      win:state.win, view:state.view, hidden:state.hidden, proxy:state.proxy
     }));
   }catch(e){ /* private mode or quota — the feed is the source of truth anyway */ }
 }
@@ -347,13 +364,19 @@ function drawChart(mount, tipEl, rows, defs, key, unit, zeroLine){
 
 function viewRows(){
   var c=cfg(), slice=state.series.slice(-c.span);
-  if(state.view==="level") return slice;
+  if(state.view==="level"){
+    return slice.map(function(r){
+      var cds={};
+      ISSUERS.forEach(function(i){ cds[i.id]=cdsAt(r,i.id); });
+      return {date:r.date, cds:cds, ust:r.ust||{}};
+    });
+  }
   var idx={}; state.series.forEach(function(r,i){ idx[r.date]=i; });
   return slice.map(function(r){
     var p = state.series[idx[r.date]-c.lookback];
     var cds={}, ust={};
     ISSUERS.forEach(function(i){
-      var a=r.cds&&r.cds[i.id], b=p&&p.cds&&p.cds[i.id];
+      var a=cdsAt(r,i.id), b=p?cdsAt(p,i.id):null;
       cds[i.id] = (a!=null&&b!=null) ? Math.round((a-b)*10)/10 : null;
     });
     TENORS.forEach(function(t){
@@ -392,11 +415,11 @@ function render(){
 
   var tiles=document.getElementById("tiles");
   tiles.innerHTML = ISSUERS.map(function(i){
-    var now = latest && latest.cds ? latest.cds[i.id] : null;
-    var then= prior  && prior.cds  ? prior.cds[i.id]  : null;
+    var now = cdsAt(latest, i.id);
+    var then= cdsAt(prior, i.id);
     var dl = (now!=null&&then!=null) ? Math.round((now-then)*10)/10 : null;
     var col = dl==null ? "var(--faint)" : dl>0 ? "var(--wide)" : dl<0 ? "var(--tight)" : "var(--faint)";
-    var vals = s.slice(-c.span).map(function(r){ return r.cds?r.cds[i.id]:null; }).filter(function(v){ return v!=null; });
+    var vals = s.slice(-c.span).map(function(r){ return cdsAt(r,i.id); }).filter(function(v){ return v!=null; });
     return '<div class="tile"><div class="hd"><span class="nm">'+i.name+'</span>'
       + '<span class="dl" style="color:'+col+'">'+(dl==null?"\u2014":sig(dl))+'</span></div>'
       + '<div class="val">'+(now==null?"\u2014":now.toFixed(1))+'<span class="unit">bp</span></div>'
@@ -416,8 +439,20 @@ function render(){
 
   document.getElementById("ctxNote").textContent =
     state.view==="level" ? "Last "+c.span+" sessions" : "Rolling "+c.lookback+"-session change, in bp";
+
+  var hasProxy = s.some(function(r){ return r.cds_proxy; });
+  var pt = document.getElementById("proxyToggle");
+  pt.hidden = !hasProxy;
+  pt.setAttribute("aria-pressed", state.proxy ? "true" : "false");
+  pt.innerHTML = '<span class="sw" style="background:'+(state.proxy?"var(--muted)":"transparent")
+    + ';border:1px solid var(--muted)"></span>Proxy history: '+(state.proxy?"ON":"OFF");
+  pt.onclick = function(){ state.proxy = !state.proxy; save(); render(); };
+
+  var frd = firstRealDate();
+  var proxyNote = (hasProxy && state.proxy && frd)
+    ? " · history before "+fmtDate(frd)+" is a bond-spread proxy, not CDS" : "";
   document.getElementById("cdsNote").textContent =
-    state.view==="level" ? "Basis points per year of protection" : "Change over "+c.lookback+" sessions, bp";
+    (state.view==="level" ? "Basis points per year of protection" : "Change over "+c.lookback+" sessions, bp") + proxyNote;
   document.getElementById("ustNote").textContent =
     state.view==="level" ? "Percent, constant maturity" : "Change over "+c.lookback+" sessions, bp";
 
@@ -479,6 +514,7 @@ if(saved){
   state.win = saved.win || "DoD";
   state.view = saved.view || "level";
   state.hidden = saved.hidden || {};
+  state.proxy = saved.proxy !== false;
 }
 if(!state.series.length){ state.series = makeDemo(260); state.demo = true; }
 render();

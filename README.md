@@ -96,6 +96,15 @@ proceeds with `CDS_SOURCE=none`.
 Because the spreads are model-derived from settlement prices, expect them to
 track quoted vendor spreads closely but not to the decimal.
 
+**Proxy history.** Real marks only accrue from 2026-09-11 onward (ICE publishes
+the latest session only). Earlier history is a *bond-spread proxy*, written
+once by `scripts/backfill_cds_proxy.py` into `cds_proxy` fields: each issuer is
+mapped to its rating bucket's FRED ICE BofA corporate OAS series (AAA/AA/A/BBB)
+and that series is level-anchored to the issuer's first real CDS mark. The
+dashboard's **Proxy history** toggle (CDS panel header) plots everything when
+ON, and only genuinely saved daily marks when OFF. Proxy values live in a
+separate field and are never mixed into `cds`.
+
 The manual routes below still work if you ever want to override this;
 set `CDS_SOURCE` in `daily-refresh.yml` back to a fixed value:
 
