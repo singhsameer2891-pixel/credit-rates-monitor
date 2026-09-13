@@ -14,3 +14,15 @@
 | 1.2 | Update `.github/workflows/daily-refresh.yml`: add "Fetch CDS marks" step (`continue-on-error`) before the data step; set `CDS_SOURCE` to `csv` only if that step succeeded, else `none` | ✅ | Treasury refresh unaffected if ICE is down |
 | 1.3 | Add `.gitignore` for `cds_today.csv`; update README data-source section | ✅ | same commit as 1.1/1.2 per doc policy |
 | 1.4 | Commit + push, trigger workflow, verify `cds` fields populated in committed data.json and tiles render on the live Pages site | ✅ | |
+
+---
+
+## GROUP 2: Backfill CDS history from ICE ❌ BLOCKED
+**Depends on:** GROUP 1
+**Summary:** Backfill historical CDS spreads from today back to the earliest date ICE has data for.
+
+| ID | Task | Status | Notes |
+|----|------|--------|-------|
+| 2.1 | Find historical access to ICE settlement prices | ❌ | Endpoint serves ONLY the latest clearing date; all date params (`date`, `clearingDate`, `asOfDate`, `businessDate`, `tradeDate`, path style) ignored or 404. No history API exists publicly. |
+| 2.2 | Alternate sources: Wayback Machine, public scrape repos | ❌ | Wayback: 2 API captures, both 2024 (outside data window); in-window page snapshots are empty JS shells. GitHub: 2 repos use the endpoint, neither publishes accumulated data. |
+| 2.3 | Backfill data.json | ❌ | Not possible without a licensed vendor (S&P Global / ICE Data Derivatives). History accrues organically: the daily 06:00 IST job adds one session per weekday from 2026-09-11 onward. |
