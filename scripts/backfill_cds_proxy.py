@@ -25,7 +25,9 @@ import sys
 import urllib.request
 from pathlib import Path
 
-FRED = "https://fred.stlouisfed.org/graph/fredgraph.csv?id={sid}"
+# cosd pins the start; the ICE BofA OAS series begin 1996-12-31, and without
+# cosd the fredgraph endpoint returns only the trailing few years.
+FRED = "https://fred.stlouisfed.org/graph/fredgraph.csv?id={sid}&cosd=1996-12-01"
 
 # FRED series: ICE BofA US Corporate OAS by rating bucket (percent, daily)
 SERIES = {

@@ -39,3 +39,17 @@
 | 3.2 | Backfill data.json: 399 rows 2025-02-06..2026-09-10; real `cds` untouched | ✅ | anchors: ORCL 1.91×BBB, MSFT 1.05×AAA, GOOGL 1.04×AA, AMZN 1.07×AA, META 1.42×AA, NVDA 1.14×A |
 | 3.3 | index.html: `Proxy history` toggle (default ON, persisted), `cdsAt()` resolution real>proxy, disclosure note in CDS panel | ✅ | verified ON/OFF locally in browser |
 | 3.4 | Docs + push + live verification | ✅ | |
+
+---
+
+## GROUP 4: Full history to the data floor ✅ DONE
+**Depends on:** GROUP 3
+**Summary:** Extend Treasury history to 1990 and proxy credit history to Dec 1996; Max chart window; cohort tags next to company names.
+
+| ID | Task | Status | Notes |
+|----|------|--------|-------|
+| 4.1 | fetch_daily.py: KEEP_DAYS 400 → 10000 | ✅ | user-approved edit; without it the daily job would re-trim history |
+| 4.2 | scripts/backfill_ust_history.py: treasury.gov per-year loop from 1990, saves after each year | ✅ | idempotent |
+| 4.3 | backfill_cds_proxy.py: FRED cosd=1996-12-01 (series floor); run via manual Actions workflow backfill-history.yml | ✅ | current-cohort mapping per user decision |
+| 4.4 | index.html: Max window (1e9 span, 252-session lookback), year-aware axis/tooltip, cohort tags on tiles+chips, sparkline downsampling | ✅ | |
+| 4.5 | Push, dispatch backfill workflow, verify live | ✅ | |

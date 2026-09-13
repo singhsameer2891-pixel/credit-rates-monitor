@@ -125,13 +125,14 @@ var STORE = "credit-rates-monitor:v1";
 var FEED  = "data.json";
 var HOUR  = 6;
 
+/* bucket = rating cohort used for the proxy history (see README) */
 var ISSUERS = [
-  {id:"ORCL", name:"Oracle",    color:"#B4441F"},
-  {id:"MSFT", name:"Microsoft", color:"#2E5A88"},
-  {id:"GOOGL",name:"Alphabet",  color:"#0F6E63"},
-  {id:"AMZN", name:"Amazon",    color:"#7A5C99"},
-  {id:"META", name:"Meta",      color:"#B08321"},
-  {id:"NVDA", name:"Nvidia",    color:"#3F7A4D"}
+  {id:"ORCL", name:"Oracle",    bucket:"BBB", color:"#B4441F"},
+  {id:"MSFT", name:"Microsoft", bucket:"AAA", color:"#2E5A88"},
+  {id:"GOOGL",name:"Alphabet",  bucket:"AA",  color:"#0F6E63"},
+  {id:"AMZN", name:"Amazon",    bucket:"AA",  color:"#7A5C99"},
+  {id:"META", name:"Meta",      bucket:"AA",  color:"#B08321"},
+  {id:"NVDA", name:"Nvidia",    bucket:"A",   color:"#3F7A4D"}
 ];
 var TENORS = [
   {id:"6M", name:"6 month", color:"#A8C6D6"},
@@ -141,9 +142,10 @@ var TENORS = [
   {id:"30Y",name:"30 year", color:"#183A51"}
 ];
 var WINDOWS = [
-  {id:"DoD", lookback:1,  span:30},
-  {id:"WoW", lookback:5,  span:90},
-  {id:"MoM", lookback:21, span:260}
+  {id:"DoD", lookback:1,   span:30},
+  {id:"WoW", lookback:5,   span:90},
+  {id:"MoM", lookback:21,  span:260},
+  {id:"Max", lookback:252, span:1e9}
 ];
 var MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
@@ -221,6 +223,8 @@ function makeDemo(n){
 /* ---------------- helpers ---------------- */
 
 function fmtDate(iso){ var p=iso.split("-"); return p[2]+" "+MONTHS[+p[1]-1]; }
+function fmtDateY(iso){ var p=iso.split("-"); return p[2]+" "+MONTHS[+p[1]-1]+" "+p[0]; }
+function fmtTick(iso, long){ var p=iso.split("-"); return long ? MONTHS[+p[1]-1]+" "+p[0] : p[2]+" "+MONTHS[+p[1]-1]; }
 function sig(v,dp){ dp=dp==null?1:dp; return (v>0?"+":v<0?"\u2212":"")+Math.abs(v).toFixed(dp); }
 function rel(ts){
   if(!ts) return "never";
@@ -301,9 +305,10 @@ function drawChart(mount, tipEl, rows, defs, key, unit, zeroLine){
     svg.push('<line x1="'+ml+'" y1="'+Y(0).toFixed(1)+'" x2="'+(W-mr)+'" y2="'+Y(0).toFixed(1)+'" stroke="#5E7080" stroke-width="1"/>');
   }
 
-  var step = Math.max(1, Math.ceil(rows.length/7));
+  var longRange = rows.length > 300;
+  var step = Math.max(1, Math.ceil(rows.length/(longRange?6:7)));
   for(i=0;i<rows.length;i+=step){
-    svg.push('<text x="'+X(i).toFixed(1)+'" y="'+(H-8)+'" text-anchor="middle">'+fmtDate(rows[i].date)+'</text>');
+    svg.push('<text x="'+X(i).toFixed(1)+'" y="'+(H-8)+'" text-anchor="middle">'+fmtTick(rows[i].date, longRange)+'</text>');
   }
 
   live.forEach(function(d){
@@ -338,7 +343,7 @@ function drawChart(mount, tipEl, rows, defs, key, unit, zeroLine){
     var r = rows[idx];
     cross.setAttribute("x1", X(idx)); cross.setAttribute("x2", X(idx));
     cross.setAttribute("opacity","1");
-    var html = '<b style="font-weight:500">'+fmtDate(r.date)+'</b>';
+    var html = '<b style="font-weight:500">'+(longRange?fmtDateY(r.date):fmtDate(r.date))+'</b>';
     live.forEach(function(d){
       var val=r[key][d.id];
       if(val==null||isNaN(val)) return;
@@ -420,7 +425,8 @@ function render(){
     var dl = (now!=null&&then!=null) ? Math.round((now-then)*10)/10 : null;
     var col = dl==null ? "var(--faint)" : dl>0 ? "var(--wide)" : dl<0 ? "var(--tight)" : "var(--faint)";
     var vals = s.slice(-c.span).map(function(r){ return cdsAt(r,i.id); }).filter(function(v){ return v!=null; });
-    return '<div class="tile"><div class="hd"><span class="nm">'+i.name+'</span>'
+    var tag = i.bucket ? ' <span style="color:var(--faint)">· '+i.bucket+'</span>' : '';
+    return '<div class="tile"><div class="hd"><span class="nm">'+i.name+tag+'</span>'
       + '<span class="dl" style="color:'+col+'">'+(dl==null?"\u2014":sig(dl))+'</span></div>'
       + '<div class="val">'+(now==null?"\u2014":now.toFixed(1))+'<span class="unit">bp</span></div>'
       + '<div style="margin-top:7px">'+spark(vals,i.color)+'</div></div>';
@@ -438,7 +444,8 @@ function render(){
       state.view, function(v){ state.view=v; save(); render(); });
 
   document.getElementById("ctxNote").textContent =
-    state.view==="level" ? "Last "+c.span+" sessions" : "Rolling "+c.lookback+"-session change, in bp";
+    state.view==="level" ? (c.span>=1e9 ? "Full history" : "Last "+c.span+" sessions")
+                         : "Rolling "+c.lookback+"-session change, in bp";
 
   var hasProxy = s.some(function(r){ return r.cds_proxy; });
   var pt = document.getElementById("proxyToggle");
@@ -478,6 +485,12 @@ function render(){
 
 function spark(vals, color){
   if(!vals || vals.length<2) return "";
+  if(vals.length>160){
+    var stride=Math.ceil(vals.length/160), thin=[];
+    for(var si=0;si<vals.length;si+=stride) thin.push(vals[si]);
+    if(thin[thin.length-1]!==vals[vals.length-1]) thin.push(vals[vals.length-1]);
+    vals=thin;
+  }
   var w=104,h=30, lo=Math.min.apply(null,vals), hi=Math.max.apply(null,vals), rng=(hi-lo)||1;
   var pts=vals.map(function(v,i){
     var x=(i/(vals.length-1))*(w-2)+1;
@@ -498,7 +511,8 @@ function chips(mount, defs, toggleable){
     var b=document.createElement("button");
     b.type="button"; b.className="chip";
     b.setAttribute("aria-pressed", on?"true":"false");
-    b.innerHTML='<span class="sw" style="background:'+(on?d.color:"transparent")+';border:1px solid '+d.color+'"></span>'+d.name;
+    b.innerHTML='<span class="sw" style="background:'+(on?d.color:"transparent")+';border:1px solid '+d.color+'"></span>'+d.name
+      +(d.bucket?' <span style="color:var(--faint)">· '+d.bucket+'</span>':'');
     if(toggleable) b.onclick=function(){ state.hidden[d.id]=on; save(); render(); };
     mount.appendChild(b);
   });

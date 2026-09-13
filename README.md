@@ -96,6 +96,15 @@ proceeds with `CDS_SOURCE=none`.
 Because the spreads are model-derived from settlement prices, expect them to
 track quoted vendor spreads closely but not to the decimal.
 
+**History depth.** Treasury yields run from 1990 (the treasury.gov floor) and
+proxy credit history from December 1996 (the FRED floor) — both loaded once by
+`scripts/backfill_ust_history.py` and the manual **Backfill full history**
+workflow. The **Max** chart window shows it all; each company tile and chart
+legend carries its rating-cohort tag (e.g. Oracle · BBB) since the proxy line
+is that cohort's spread history scaled to the company, not company-specific
+data. In the early years several of these firms were young or unrated — the
+proxy shows how today's cohort traded then, nothing more.
+
 **Proxy history.** Real marks only accrue from 2026-09-11 onward (ICE publishes
 the latest session only). Earlier history is a *bond-spread proxy*, written
 once by `scripts/backfill_cds_proxy.py` into `cds_proxy` fields: each issuer is

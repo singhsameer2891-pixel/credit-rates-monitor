@@ -48,7 +48,7 @@ TREASURY_URL = (
 )
 
 UA = {"User-Agent": "credit-rates-monitor/1.0 (personal dashboard)"}
-KEEP_DAYS = 400
+KEEP_DAYS = 10000  # ~38 years of sessions; treasury.gov data starts in 1990
 
 
 def get(url: str, timeout: int = 45) -> bytes:

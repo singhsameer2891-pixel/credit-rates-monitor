@@ -1,0 +1,40 @@
+# One-off, manual-only: extend data.json to the full history floor.
+# Treasury par yields from 1990 (treasury.gov) and proxy credit history from
+# Dec 1996 (FRED rating-bucket OAS, level-anchored — see backfill_cds_proxy.py).
+# Safe to re-run: both scripts are idempotent.
+
+name: Backfill full history
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: daily-refresh   # never race the daily job's commit
+  cancel-in-progress: false
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Treasury history since 1990
+        run: python3 scripts/backfill_ust_history.py data.json
+
+      - name: Proxy credit history since Dec 1996
+        run: python3 scripts/backfill_cds_proxy.py data.json
+
+      - name: Commit
+        run: |
+          git config user.name  "credit-rates-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add data.json
+          git commit -m "data: full-history backfill (UST 1990+, proxy 1996-12+)"
+          git push
