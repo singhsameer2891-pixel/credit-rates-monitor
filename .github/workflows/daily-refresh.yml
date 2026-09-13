@@ -1,0 +1,66 @@
+# Runs the fetcher every weekday morning and commits data.json.
+# The dashboard sits in the same repo, so it reads data.json as a plain
+# relative path. Same origin, no cross-origin problems to worry about.
+#
+# GitHub cron is UTC and does not follow daylight saving.
+# 10:00 UTC is 06:00 New York in summer, 05:00 in winter. Adjust the hour:
+#   06:00 New York (winter)  ->  cron: "0 11 * * 1-5"
+#   06:00 London             ->  cron: "0 5 * * 1-5"   (summer)
+#   06:00 Mumbai             ->  cron: "30 0 * * 1-5"
+#   06:00 Singapore          ->  cron: "0 22 * * 0-4"
+#
+# Treasury posts the par yield curve around 16:30 New York, so a morning
+# run always picks up the previous session's close.
+
+name: Daily credit and rates refresh
+
+on:
+  schedule:
+    - cron: "30 0 * * 1-5"
+  workflow_dispatch:
+    inputs:
+      backfill:
+        description: "Write every session this year, not just the latest"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: daily-refresh
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Fetch end-of-day data
+        env:
+          # Pick one: none | csv | ice | vendor
+          CDS_SOURCE: none
+          CDS_ICE_URL: ${{ vars.CDS_ICE_URL }}
+          CDS_API_URL: ${{ vars.CDS_API_URL }}
+          CDS_API_KEY: ${{ secrets.CDS_API_KEY }}
+        run: |
+          python3 fetch_daily.py --out data.json \
+            ${{ inputs.backfill && '--backfill' || '' }}
+        continue-on-error: true
+
+      - name: Commit if changed
+        run: |
+          if git diff --quiet -- data.json; then
+            echo "No change today, nothing to commit."
+            exit 0
+          fi
+          git config user.name  "credit-rates-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add data.json
+          git commit -m "data: $(date -u +%Y-%m-%d)"
+          git push

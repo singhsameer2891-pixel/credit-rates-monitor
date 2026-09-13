@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Credit &amp; rates monitor</title>
+<style>
+  :root{
+    --paper:#F2F4F3; --panel:#FFFFFF; --ink:#16232B; --muted:#5E7080;
+    --faint:#8FA0AC; --rule:#DCE3E3; --soft:#EAEFEF;
+    --wide:#B4441F; --tight:#0F6E63; --warnbg:#FBF0E4; --warnink:#8A5312; --warnrule:#E8D2B0;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--paper); color:var(--ink);
+    font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+    font-variant-numeric:tabular-nums; -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1080px;margin:0 auto;padding:0 20px 48px}
+  header.top{
+    display:flex;align-items:center;justify-content:space-between;gap:18px;
+    padding:20px 0 14px;border-bottom:2px solid var(--ink);flex-wrap:wrap;
+  }
+  h1{margin:0;font-size:19px;font-weight:600;letter-spacing:-.02em}
+  .meta{display:flex;align-items:center;gap:14px;font-size:12px;color:var(--muted)}
+  button{font-family:inherit;cursor:pointer}
+  .btn{padding:5px 12px;font-size:12px;border:1px solid var(--ink);background:var(--ink);color:var(--paper);border-radius:2px}
+  .btn.ghost{border-color:var(--rule);background:transparent;color:var(--muted)}
+  .btn:focus-visible,.seg button:focus-visible,.chip:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+  .banner{
+    background:var(--warnbg);color:var(--warnink);border:1px solid var(--warnrule);
+    border-radius:3px;padding:10px 14px;margin:14px 0 0;font-size:12.5px;line-height:1.55;
+  }
+  .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(158px,1fr));gap:1px;background:var(--rule);border:1px solid var(--rule);margin:18px 0}
+  .tile{background:var(--panel);padding:13px 14px 11px}
+  .tile .hd{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:2px}
+  .tile .nm{font-size:12.5px;color:var(--muted)}
+  .tile .dl{font-size:11.5px}
+  .tile .val{font-size:25px;font-weight:600;letter-spacing:-.03em;line-height:1.1}
+  .tile .unit{font-size:12px;font-weight:400;color:var(--faint);margin-left:4px}
+  .lede{font-size:12px;color:var(--muted);margin:-6px 0 20px;max-width:76ch;line-height:1.6}
+  .controls{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:16px}
+  .seg{display:inline-flex;border:1px solid var(--rule);border-radius:2px;overflow:hidden;background:var(--panel)}
+  .seg button{padding:5px 13px;font-size:12.5px;border:none;border-right:1px solid var(--soft);background:transparent;color:var(--muted)}
+  .seg button:last-child{border-right:none}
+  .seg button[aria-checked="true"]{background:var(--ink);color:var(--paper);font-weight:500}
+  section.panel{background:var(--panel);border:1px solid var(--rule);border-radius:3px;margin-bottom:18px}
+  .phd{display:flex;align-items:baseline;justify-content:space-between;gap:16px;padding:13px 18px 11px;border-bottom:1px solid var(--soft);flex-wrap:wrap}
+  .phd h2{margin:0;font-size:15.5px;font-weight:600;letter-spacing:-.01em}
+  .phd p{margin:3px 0 0;font-size:12px;color:var(--faint)}
+  .pbd{padding:16px 18px 18px}
+  .chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+  .chip{display:inline-flex;align-items:center;gap:6px;padding:3px 10px 3px 7px;font-size:12px;border:1px solid var(--rule);border-radius:2px;background:transparent;color:var(--ink)}
+  .chip[aria-pressed="false"]{border-color:var(--soft);color:var(--faint)}
+  .sw{width:9px;height:9px;border-radius:1px;display:inline-block}
+  .latest{display:flex;gap:14px;font-size:12px;color:var(--muted);flex-wrap:wrap}
+  .latest b{font-weight:500;color:var(--ink)}
+  .chart{width:100%;display:block;touch-action:none}
+  .chart text{font-size:11px;fill:var(--faint)}
+  .tipbox{
+    position:absolute;pointer-events:none;background:var(--panel);border:1px solid var(--rule);
+    border-radius:2px;padding:7px 10px;font-size:12px;line-height:1.55;white-space:nowrap;
+    box-shadow:0 1px 2px rgba(0,0,0,.06);opacity:0;transition:opacity .1s;z-index:5;
+  }
+  .chartwrap{position:relative}
+  .empty{padding:36px 4px;text-align:center;color:var(--muted);font-size:13px;line-height:1.7}
+  .empty code{background:var(--paper);padding:2px 5px;border-radius:2px;font-size:12px}
+  .note{margin:16px 0 0;font-size:11.5px;color:var(--faint);line-height:1.6;max-width:72ch}
+  .status{margin:0 0 12px;font-size:12.5px;line-height:1.55}
+  @media (max-width:560px){ .tiles{grid-template-columns:repeat(2,1fr)} h1{font-size:17px} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <h1>Credit &amp; rates monitor</h1>
+    <div class="meta">
+      <span id="refreshed">Loading…</span>
+      <button class="btn" id="refreshBtn">Refresh now</button>
+    </div>
+  </header>
+
+  <div id="banner" class="banner" hidden></div>
+
+  <div class="tiles" id="tiles"></div>
+  <p class="lede" id="lede"></p>
+
+  <div class="controls">
+    <div class="seg" role="radiogroup" aria-label="Comparison window" id="winSeg"></div>
+    <div class="seg" role="radiogroup" aria-label="Chart view" id="viewSeg"></div>
+    <span style="font-size:12px;color:var(--faint)" id="ctxNote"></span>
+  </div>
+
+  <section class="panel">
+    <div class="phd">
+      <div><h2>CDS spreads</h2><p id="cdsNote">Basis points per year of protection</p></div>
+    </div>
+    <div class="pbd">
+      <div class="chartwrap"><div id="cdsChart"></div><div class="tipbox" id="cdsTip"></div></div>
+      <div class="chips" id="cdsChips"></div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="phd">
+      <div><h2>Treasury par yields</h2><p id="ustNote">Percent, constant maturity</p></div>
+      <div class="latest" id="ustLatest"></div>
+    </div>
+    <div class="pbd">
+      <div class="chartwrap"><div id="ustChart"></div><div class="tipbox" id="ustTip"></div></div>
+      <div class="chips" id="ustChips"></div>
+    </div>
+  </section>
+
+  <p class="note" id="footnote"></p>
+</div>
+
+<script>
+(function(){
+"use strict";
+
+var STORE = "credit-rates-monitor:v1";
+var FEED  = "data.json";
+var HOUR  = 6;
+
+var ISSUERS = [
+  {id:"ORCL", name:"Oracle",    color:"#B4441F"},
+  {id:"MSFT", name:"Microsoft", color:"#2E5A88"},
+  {id:"GOOGL",name:"Alphabet",  color:"#0F6E63"},
+  {id:"AMZN", name:"Amazon",    color:"#7A5C99"},
+  {id:"META", name:"Meta",      color:"#B08321"},
+  {id:"NVDA", name:"Nvidia",    color:"#3F7A4D"}
+];
+var TENORS = [
+  {id:"6M", name:"6 month", color:"#A8C6D6"},
+  {id:"1Y", name:"1 year",  color:"#7AA4BE"},
+  {id:"2Y", name:"2 year",  color:"#4E819F"},
+  {id:"10Y",name:"10 year", color:"#2E5A78"},
+  {id:"30Y",name:"30 year", color:"#183A51"}
+];
+var WINDOWS = [
+  {id:"DoD", lookback:1,  span:30},
+  {id:"WoW", lookback:5,  span:90},
+  {id:"MoM", lookback:21, span:260}
+];
+var MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+
+var state = {
+  series: [], demo:false, refreshed:null,
+  win:"DoD", view:"level", hidden:{}
+};
+
+/* ---------------- storage ---------------- */
+
+function save(){
+  try{
+    localStorage.setItem(STORE, JSON.stringify({
+      series:state.series, demo:state.demo, refreshed:state.refreshed,
+      win:state.win, view:state.view, hidden:state.hidden
+    }));
+  }catch(e){ /* private mode or quota — the feed is the source of truth anyway */ }
+}
+function load(){
+  try{
+    var raw = localStorage.getItem(STORE);
+    if(!raw) return null;
+    return JSON.parse(raw);
+  }catch(e){ return null; }
+}
+
+/* ---------------- demo data ---------------- */
+
+function makeDemo(n){
+  var s = 20260913;
+  function rnd(){ s = (s*1103515245 + 12345) % 2147483648; return s/2147483648; }
+  var cur = {ORCL:128,MSFT:26,GOOGL:34,AMZN:40,META:52,NVDA:44};
+  var drift= {ORCL:.30,MSFT:.012,GOOGL:.035,AMZN:.03,META:.05,NVDA:.04};
+  var vol  = {ORCL:3.6,MSFT:.5,GOOGL:.8,AMZN:.9,META:1.2,NVDA:1.1};
+  var ub = {"6M":3.72,"1Y":3.66,"2Y":3.61,"10Y":4.18,"30Y":4.81};
+  var uv = {"6M":.015,"1Y":.02,"2Y":.028,"10Y":.035,"30Y":.033};
+  var uc = {}; for(var k in ub) uc[k]=ub[k];
+  var out=[], d=new Date();
+  d.setDate(d.getDate() - Math.round(n*1.42));
+  while(out.length<n){
+    d.setDate(d.getDate()+1);
+    var dow=d.getDay(); if(dow===0||dow===6) continue;
+    var shock = rnd()<.035 ? (rnd()-.35)*4 : 0;
+    var cds={}, ust={};
+    ISSUERS.forEach(function(i){
+      cur[i.id] += drift[i.id] + (rnd()-.5)*2*vol[i.id] + shock*vol[i.id]*.8;
+      if(cur[i.id]<8) cur[i.id]=8;
+      cds[i.id]=Math.round(cur[i.id]*10)/10;
+    });
+    TENORS.forEach(function(t){
+      uc[t.id] += (rnd()-.5)*2*uv[t.id] - (uc[t.id]-ub[t.id])*.02;
+      ust[t.id]=Math.round(uc[t.id]*100)/100;
+    });
+    out.push({date:d.toISOString().slice(0,10), cds:cds, ust:ust});
+  }
+  return out;
+}
+
+/* ---------------- helpers ---------------- */
+
+function fmtDate(iso){ var p=iso.split("-"); return p[2]+" "+MONTHS[+p[1]-1]; }
+function sig(v,dp){ dp=dp==null?1:dp; return (v>0?"+":v<0?"\u2212":"")+Math.abs(v).toFixed(dp); }
+function rel(ts){
+  if(!ts) return "never";
+  var m=Math.floor((Date.now()-new Date(ts).getTime())/60000);
+  if(m<1) return "just now";
+  if(m<60) return m+" min ago";
+  var h=Math.floor(m/60);
+  if(h<24) return h+"h ago";
+  return Math.floor(h/24)+"d ago";
+}
+function cfg(){ for(var i=0;i<WINDOWS.length;i++) if(WINDOWS[i].id===state.win) return WINDOWS[i]; return WINDOWS[0]; }
+
+/* ---------------- fetch (plain code, no model) ---------------- */
+
+function refresh(quiet){
+  var url = FEED + "?t=" + Date.now();
+  return fetch(url, {cache:"no-store"}).then(function(r){
+    if(!r.ok) throw new Error("HTTP "+r.status);
+    return r.json();
+  }).then(function(doc){
+    var ser = Array.isArray(doc) ? doc : doc.series;
+    if(!ser || !ser.length) throw new Error("empty");
+    ser = ser.slice().sort(function(a,b){ return a.date<b.date?-1:1; });
+    state.series = ser;
+    state.demo = false;
+    state.refreshed = doc.generated_at || new Date().toISOString();
+    save(); render();
+    return true;
+  }).catch(function(){
+    if(!state.series.length){
+      state.series = makeDemo(260);
+      state.demo = true;
+      state.refreshed = new Date().toISOString();
+      save();
+    }
+    render();
+    return false;
+  });
+}
+
+/* ---------------- chart ---------------- */
+
+function drawChart(mount, tipEl, rows, defs, key, unit, zeroLine){
+  var W=860, H=320, ml=54, mr=14, mt=10, mb=26;
+  var iw=W-ml-mr, ih=H-mt-mb;
+  var live = defs.filter(function(d){ return !state.hidden[d.id]; });
+
+  if(!rows.length || !live.length){
+    mount.innerHTML = '<div class="empty">Nothing to plot yet.</div>';
+    return;
+  }
+
+  var lo=Infinity, hi=-Infinity;
+  rows.forEach(function(r){
+    live.forEach(function(d){
+      var v = r[key][d.id];
+      if(v==null||isNaN(v)) return;
+      if(v<lo) lo=v; if(v>hi) hi=v;
+    });
+  });
+  if(lo===Infinity){ mount.innerHTML='<div class="empty">No values in this range.</div>'; return; }
+  if(hi===lo){ hi=lo+1; lo=lo-1; }
+  var pad=(hi-lo)*0.08; lo-=pad; hi+=pad;
+  if(zeroLine){ if(lo>0) lo=-pad; if(hi<0) hi=pad; }
+
+  var X=function(i){ return ml + (rows.length===1?iw/2:(i/(rows.length-1))*iw); };
+  var Y=function(v){ return mt + ih - ((v-lo)/(hi-lo))*ih; };
+
+  var svg=['<svg class="chart" viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none" style="height:320px" role="img" aria-label="Time series chart">'];
+
+  var ticks=5, i, v, y;
+  for(i=0;i<=ticks;i++){
+    v = lo + (hi-lo)*(i/ticks); y = Y(v);
+    svg.push('<line x1="'+ml+'" y1="'+y.toFixed(1)+'" x2="'+(W-mr)+'" y2="'+y.toFixed(1)+'" stroke="#EAEFEF" stroke-width="1"/>');
+    svg.push('<text x="'+(ml-8)+'" y="'+(y+3.5).toFixed(1)+'" text-anchor="end">'+v.toFixed(unit==="%"?2:0)+'</text>');
+  }
+  if(zeroLine && lo<0 && hi>0){
+    svg.push('<line x1="'+ml+'" y1="'+Y(0).toFixed(1)+'" x2="'+(W-mr)+'" y2="'+Y(0).toFixed(1)+'" stroke="#5E7080" stroke-width="1"/>');
+  }
+
+  var step = Math.max(1, Math.ceil(rows.length/7));
+  for(i=0;i<rows.length;i+=step){
+    svg.push('<text x="'+X(i).toFixed(1)+'" y="'+(H-8)+'" text-anchor="middle">'+fmtDate(rows[i].date)+'</text>');
+  }
+
+  live.forEach(function(d){
+    var pts=[], started=false;
+    rows.forEach(function(r,ix){
+      var val=r[key][d.id];
+      if(val==null||isNaN(val)) return;
+      pts.push(X(ix).toFixed(1)+","+Y(val).toFixed(1));
+      started=true;
+    });
+    if(!started) return;
+    var w = d.id==="ORCL" ? 2.1 : 1.4;
+    svg.push('<polyline points="'+pts.join(" ")+'" fill="none" stroke="'+d.color+'" stroke-width="'+w+'" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>');
+  });
+
+  svg.push('<line class="cross" x1="0" y1="'+mt+'" x2="0" y2="'+(mt+ih)+'" stroke="#8FA0AC" stroke-width="1" opacity="0" vector-effect="non-scaling-stroke"/>');
+  svg.push('<rect class="hit" x="'+ml+'" y="'+mt+'" width="'+iw+'" height="'+ih+'" fill="transparent"/>');
+  svg.push('</svg>');
+  mount.innerHTML = svg.join("");
+
+  var el = mount.querySelector("svg");
+  var cross = el.querySelector(".cross");
+  var hit = el.querySelector(".hit");
+
+  function move(ev){
+    var box = el.getBoundingClientRect();
+    var cx = (ev.touches ? ev.touches[0].clientX : ev.clientX) - box.left;
+    var sx = cx / box.width * W;
+    var frac = (sx - ml) / iw;
+    var idx = Math.round(frac * (rows.length-1));
+    if(idx<0) idx=0; if(idx>rows.length-1) idx=rows.length-1;
+    var r = rows[idx];
+    cross.setAttribute("x1", X(idx)); cross.setAttribute("x2", X(idx));
+    cross.setAttribute("opacity","1");
+    var html = '<b style="font-weight:500">'+fmtDate(r.date)+'</b>';
+    live.forEach(function(d){
+      var val=r[key][d.id];
+      if(val==null||isNaN(val)) return;
+      html += '<br><span style="display:inline-block;width:8px;height:8px;border-radius:1px;background:'+d.color+';margin-right:6px"></span>'
+            + d.name + ' &nbsp;<b style="font-weight:500">' + (unit==="%"?val.toFixed(2)+"%":val.toFixed(1)+" bp") + '</b>';
+    });
+    tipEl.innerHTML = html;
+    tipEl.style.opacity = "1";
+    var px = X(idx)/W*box.width;
+    var left = px + 16;
+    if(left + tipEl.offsetWidth > box.width) left = px - tipEl.offsetWidth - 16;
+    tipEl.style.left = Math.max(0,left) + "px";
+    tipEl.style.top = "8px";
+  }
+  function leave(){ cross.setAttribute("opacity","0"); tipEl.style.opacity="0"; }
+  hit.addEventListener("mousemove", move);
+  hit.addEventListener("mouseleave", leave);
+  hit.addEventListener("touchmove", move, {passive:true});
+  hit.addEventListener("touchend", leave);
+}
+
+/* ---------------- derive ---------------- */
+
+function viewRows(){
+  var c=cfg(), slice=state.series.slice(-c.span);
+  if(state.view==="level") return slice;
+  var idx={}; state.series.forEach(function(r,i){ idx[r.date]=i; });
+  return slice.map(function(r){
+    var p = state.series[idx[r.date]-c.lookback];
+    var cds={}, ust={};
+    ISSUERS.forEach(function(i){
+      var a=r.cds&&r.cds[i.id], b=p&&p.cds&&p.cds[i.id];
+      cds[i.id] = (a!=null&&b!=null) ? Math.round((a-b)*10)/10 : null;
+    });
+    TENORS.forEach(function(t){
+      var a=r.ust&&r.ust[t.id], b=p&&p.ust&&p.ust[t.id];
+      ust[t.id] = (a!=null&&b!=null) ? Math.round((a-b)*1000)/10 : null;
+    });
+    return {date:r.date, cds:cds, ust:ust};
+  });
+}
+
+/* ---------------- render ---------------- */
+
+function seg(mount, opts, cur, onPick){
+  mount.innerHTML = "";
+  opts.forEach(function(o){
+    var b=document.createElement("button");
+    b.type="button"; b.setAttribute("role","radio");
+    b.setAttribute("aria-checked", o.id===cur ? "true":"false");
+    b.textContent=o.label;
+    b.onclick=function(){ onPick(o.id); };
+    mount.appendChild(b);
+  });
+}
+
+function render(){
+  var c=cfg(), s=state.series;
+  var latest = s[s.length-1], prior = s[s.length-1-c.lookback];
+
+  document.getElementById("refreshed").textContent = "Last refreshed " + rel(state.refreshed);
+
+  var banner=document.getElementById("banner");
+  if(state.demo){
+    banner.hidden=false;
+    banner.textContent="Showing synthetic demo data so the layout is visible. These are not real spreads or yields. They are replaced the first time the daily job writes data.json.";
+  } else { banner.hidden=true; }
+
+  var tiles=document.getElementById("tiles");
+  tiles.innerHTML = ISSUERS.map(function(i){
+    var now = latest && latest.cds ? latest.cds[i.id] : null;
+    var then= prior  && prior.cds  ? prior.cds[i.id]  : null;
+    var dl = (now!=null&&then!=null) ? Math.round((now-then)*10)/10 : null;
+    var col = dl==null ? "var(--faint)" : dl>0 ? "var(--wide)" : dl<0 ? "var(--tight)" : "var(--faint)";
+    var vals = s.slice(-c.span).map(function(r){ return r.cds?r.cds[i.id]:null; }).filter(function(v){ return v!=null; });
+    return '<div class="tile"><div class="hd"><span class="nm">'+i.name+'</span>'
+      + '<span class="dl" style="color:'+col+'">'+(dl==null?"\u2014":sig(dl))+'</span></div>'
+      + '<div class="val">'+(now==null?"\u2014":now.toFixed(1))+'<span class="unit">bp</span></div>'
+      + '<div style="margin-top:7px">'+spark(vals,i.color)+'</div></div>';
+  }).join("");
+
+  document.getElementById("lede").textContent =
+    "5-year senior CDS, end of day. Change shown is over " + c.lookback + " session" + (c.lookback>1?"s":"") +
+    ". Oracle is the market's liquid hedge on AI capex, so it moves first and hardest.";
+
+  seg(document.getElementById("winSeg"),
+      WINDOWS.map(function(w){ return {id:w.id,label:w.id}; }),
+      state.win, function(v){ state.win=v; save(); render(); });
+  seg(document.getElementById("viewSeg"),
+      [{id:"level",label:"Levels"},{id:"change",label:"Change"}],
+      state.view, function(v){ state.view=v; save(); render(); });
+
+  document.getElementById("ctxNote").textContent =
+    state.view==="level" ? "Last "+c.span+" sessions" : "Rolling "+c.lookback+"-session change, in bp";
+  document.getElementById("cdsNote").textContent =
+    state.view==="level" ? "Basis points per year of protection" : "Change over "+c.lookback+" sessions, bp";
+  document.getElementById("ustNote").textContent =
+    state.view==="level" ? "Percent, constant maturity" : "Change over "+c.lookback+" sessions, bp";
+
+  document.getElementById("ustLatest").innerHTML = TENORS.map(function(t){
+    var v = latest && latest.ust ? latest.ust[t.id] : null;
+    return '<span style="white-space:nowrap"><span style="color:var(--faint)">'+t.id+'</span> <b>'+(v==null?"\u2014":v.toFixed(2))+'</b></span>';
+  }).join("");
+
+  var rows = viewRows();
+  drawChart(document.getElementById("cdsChart"), document.getElementById("cdsTip"),
+            rows, ISSUERS, "cds", "bp", state.view==="change");
+  drawChart(document.getElementById("ustChart"), document.getElementById("ustTip"),
+            rows, TENORS, "ust", state.view==="level"?"%":"bp", state.view==="change");
+
+  chips(document.getElementById("cdsChips"), ISSUERS, true);
+  chips(document.getElementById("ustChips"), TENORS, true);
+
+  document.getElementById("footnote").textContent =
+    "Your window choice is remembered in this browser. The page re-reads data.json when you open it, and again "
+    + "once per day after " + HOUR + ":00 if you leave it open. Treasury posts the curve around 16:30 New York, "
+    + "so a morning run always shows the previous session's close.";
+}
+
+function spark(vals, color){
+  if(!vals || vals.length<2) return "";
+  var w=104,h=30, lo=Math.min.apply(null,vals), hi=Math.max.apply(null,vals), rng=(hi-lo)||1;
+  var pts=vals.map(function(v,i){
+    var x=(i/(vals.length-1))*(w-2)+1;
+    var y=h-2-((v-lo)/rng)*(h-4);
+    return x.toFixed(1)+","+y.toFixed(1);
+  }).join(" ");
+  var last=vals[vals.length-1];
+  var ly=h-2-((last-lo)/rng)*(h-4);
+  return '<svg width="'+w+'" height="'+h+'" aria-hidden="true" style="display:block">'
+       + '<polyline points="'+pts+'" fill="none" stroke="'+color+'" stroke-width="1.4" stroke-linejoin="round"/>'
+       + '<circle cx="'+(w-1)+'" cy="'+ly.toFixed(1)+'" r="2" fill="'+color+'"/></svg>';
+}
+
+function chips(mount, defs, toggleable){
+  mount.innerHTML="";
+  defs.forEach(function(d){
+    var on = !state.hidden[d.id];
+    var b=document.createElement("button");
+    b.type="button"; b.className="chip";
+    b.setAttribute("aria-pressed", on?"true":"false");
+    b.innerHTML='<span class="sw" style="background:'+(on?d.color:"transparent")+';border:1px solid '+d.color+'"></span>'+d.name;
+    if(toggleable) b.onclick=function(){ state.hidden[d.id]=on; save(); render(); };
+    mount.appendChild(b);
+  });
+}
+
+/* ---------------- boot + daily schedule ---------------- */
+
+var saved = load();
+if(saved){
+  state.series = saved.series || [];
+  state.demo = !!saved.demo;
+  state.refreshed = saved.refreshed || null;
+  state.win = saved.win || "DoD";
+  state.view = saved.view || "level";
+  state.hidden = saved.hidden || {};
+}
+if(!state.series.length){ state.series = makeDemo(260); state.demo = true; }
+render();
+refresh(true);
+
+document.getElementById("refreshBtn").onclick = function(){ refresh(false); };
+
+setInterval(function(){
+  document.getElementById("refreshed").textContent = "Last refreshed " + rel(state.refreshed);
+  var now = new Date();
+  if(now.getHours() < HOUR) return;
+  var cut = new Date(); cut.setHours(HOUR,0,0,0);
+  if(!state.refreshed || new Date(state.refreshed) < cut) refresh(true);
+}, 60000);
+
+})();
+</script>
+</body>
+</html>
