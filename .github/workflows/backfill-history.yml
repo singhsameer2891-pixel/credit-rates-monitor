@@ -28,11 +28,39 @@ jobs:
       - name: Treasury history since 1990
         run: python3 scripts/backfill_ust_history.py data.json
 
-      - name: Proxy credit history since Dec 1996
-        run: python3 scripts/backfill_cds_proxy.py data.json
+      # FRED's CDN drops python-urllib clients (read timeout), so fetch the
+      # CSVs with curl + retries and hand them to the script via --csv-dir.
+      - name: Download FRED OAS series
+        id: fred
+        continue-on-error: true
+        run: |
+          mkdir -p /tmp/fred
+          for sid in BAMLC0A1CAAA BAMLC0A2CAA BAMLC0A3CA BAMLC0A4CBBB; do
+            ok=0
+            for i in 1 2 3 4 5 6; do
+              curl -sS -m 45 --tlsv1.2 \
+                -A "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128 Safari/537.36" \
+                -o "/tmp/fred/$sid.csv" \
+                "https://fred.stlouisfed.org/graph/fredgraph.csv?id=$sid&cosd=1996-12-01" \
+                && head -1 "/tmp/fred/$sid.csv" | grep -q observation_date \
+                && { echo "$sid ok (attempt $i)"; ok=1; break; }
+              sleep 15
+            done
+            [ "$ok" = 1 ] || { echo "$sid failed"; exit 1; }
+          done
 
+      - name: Proxy credit history since Dec 1996
+        if: steps.fred.outcome == 'success'
+        continue-on-error: true
+        run: python3 scripts/backfill_cds_proxy.py data.json --csv-dir /tmp/fred
+
+      # Commit whatever succeeded — treasury history alone is still progress.
       - name: Commit
         run: |
+          if git diff --quiet -- data.json; then
+            echo "No change, nothing to commit."
+            exit 0
+          fi
           git config user.name  "credit-rates-bot"
           git config user.email "actions@users.noreply.github.com"
           git add data.json
