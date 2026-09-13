@@ -109,7 +109,10 @@ proxy shows how today's cohort traded then, nothing more.
 the latest session only). Earlier history is a *bond-spread proxy*, written
 once by `scripts/backfill_cds_proxy.py` into `cds_proxy` fields: each issuer is
 mapped to its rating bucket's FRED ICE BofA corporate OAS series (AAA/AA/A/BBB)
-and that series is level-anchored to the issuer's first real CDS mark. The
+and that series is level-anchored to the issuer's first real CDS mark.
+FRED stopped serving more than 3 years of these series in April 2026, so the
+pre-2023 history was spliced from public research caches of the same FRED
+series; short 2022-24 stretches of the AAA/AA/A curves are month-resolution. The
 dashboard's **Proxy history** toggle (CDS panel header) plots everything when
 ON, and only genuinely saved daily marks when OFF. Proxy values live in a
 separate field and are never mixed into `cds`.

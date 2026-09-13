@@ -50,6 +50,6 @@
 |----|------|--------|-------|
 | 4.1 | fetch_daily.py: KEEP_DAYS 400 → 10000 | ✅ | user-approved edit; without it the daily job would re-trim history |
 | 4.2 | scripts/backfill_ust_history.py: treasury.gov per-year loop from 1990, saves after each year | ✅ | idempotent |
-| 4.3 | backfill_cds_proxy.py: FRED cosd=1996-12-01 (series floor); run via manual Actions workflow backfill-history.yml | ✅ | current-cohort mapping per user decision |
+| 4.3 | Proxy history 1996-12-31→now: FRED serves only 3y since Apr 2026 (ICE licence change; blocks non-browser clients too), so spliced from public caches of the same series (ngfs-credit-ratings 1996→2022 all buckets; Wayback fredgraph capture AAA→2023-03; viki-m13/bonds BBB 2000→2026-08) + live 3y window + monthly fill for AAA/AA/A 2023-10→2024-12. 7,419 proxy rows. Raw OAS CSVs kept local only (ICE redistribution terms) | ✅ | current-cohort mapping per user decision |
 | 4.4 | index.html: Max window (1e9 span, 252-session lookback), year-aware axis/tooltip, cohort tags on tiles+chips, sparkline downsampling | ✅ | |
 | 4.5 | Push, dispatch backfill workflow, verify live | ✅ | |
